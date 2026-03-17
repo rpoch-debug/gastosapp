@@ -7,7 +7,10 @@ export async function GET() {
     id: cfg.id,
     name: cfg.name,
     shortName: cfg.shortName,
-    configured: !!(process.env[cfg.rutEnv] && process.env[cfg.passwordEnv]),
+    configured: !!(
+      (getSetting(`cred_${cfg.id}_rut`) || process.env[cfg.rutEnv]) &&
+      (getSetting(`cred_${cfg.id}_password`) || process.env[cfg.passwordEnv])
+    ),
     lastSync: getSetting(`last_sync_${cfg.id}`) ?? null,
   }));
 

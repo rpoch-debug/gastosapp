@@ -13,6 +13,7 @@ import { Incomes } from "@/components/dashboard/incomes";
 import { SavingsSummary } from "@/components/dashboard/savings-summary";
 import { CardBreakdown } from "@/components/dashboard/card-breakdown";
 import { Logo } from "@/components/dashboard/logo";
+import { BankCredentialsModal } from "@/components/dashboard/bank-credentials-modal";
 import { todayStr, VIEW_MODE_LABELS, shiftRef, formatCLP } from "@/lib/utils";
 import type { ViewMode } from "@/lib/utils";
 
@@ -134,6 +135,7 @@ export default function Dashboard() {
   const [ref, setRef] = useState(todayStr());
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showBankCredentials, setShowBankCredentials] = useState(false);
   const [showWebhook, setShowWebhook] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("gastos");
   const [fixedTotal, setFixedTotal] = useState(0);
@@ -200,6 +202,13 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowBankCredentials(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] transition-colors text-base"
+            title="Conectar bancos"
+          >
+            🏦
+          </button>
+          <button
             onClick={() => setShowSettings(!showSettings)}
             className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors text-base ${
               showSettings
@@ -217,6 +226,12 @@ export default function Dashboard() {
 
       {showSettings && (
         <BillingSettings onClose={() => setShowSettings(false)} onSave={fetchData} />
+      )}
+      {showBankCredentials && (
+        <BankCredentialsModal
+          onClose={() => setShowBankCredentials(false)}
+          onSave={() => { fetchData(); setShowBankCredentials(false); }}
+        />
       )}
 
       {/* ── Main tabs ── */}

@@ -107,7 +107,10 @@ export async function GET(
   if (!cfg) {
     return NextResponse.json({ error: "Banco no soportado" }, { status: 404 });
   }
-  const configured = !!(process.env[cfg.rutEnv] && process.env[cfg.passwordEnv]);
+  const configured = !!(
+    (getSetting(`cred_${bankId}_rut`) || process.env[cfg.rutEnv]) &&
+    (getSetting(`cred_${bankId}_password`) || process.env[cfg.passwordEnv])
+  );
   const lastSync = getSetting(`last_sync_${bankId}`) ?? null;
   return NextResponse.json({ configured, lastSync, name: cfg.name });
 }
@@ -122,8 +125,9 @@ export async function POST(
     return NextResponse.json({ error: "Banco no soportado" }, { status: 404 });
   }
 
-  const rut = process.env[cfg.rutEnv];
-  const password = process.env[cfg.passwordEnv];
+  // Credentials: DB takes priority over env vars
+  const rut = getSetting(`cred_${bankId}_rut`) ?? process.env[cfg.rutEnv];
+  const password = getSetting(`cred_${bankId}_password`) ?? process.env[cfg.passwordEnv];
 
   if (!rut || !password) {
     return NextResponse.json(
