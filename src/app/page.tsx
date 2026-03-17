@@ -6,7 +6,7 @@ import { CategoryChart } from "@/components/dashboard/category-chart";
 import { MonthlyTrend } from "@/components/dashboard/monthly-trend";
 import { TransactionTable } from "@/components/dashboard/transaction-table";
 import { GmailSync } from "@/components/dashboard/gmail-sync";
-import { BancoChileSync } from "@/components/dashboard/banco-chile-sync";
+import { BankSync } from "@/components/dashboard/bank-sync";
 import { BillingSettings } from "@/components/dashboard/billing-settings";
 import { FixedExpenses } from "@/components/dashboard/fixed-expenses";
 import { Incomes } from "@/components/dashboard/incomes";
@@ -125,7 +125,7 @@ export default function Dashboard() {
           >
             ⚙
           </button>
-          <BancoChileSync onSync={fetchData} />
+          <BankSync onSync={fetchData} />
           <GmailSync onSync={fetchData} />
         </div>
       </header>
