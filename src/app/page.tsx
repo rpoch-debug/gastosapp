@@ -5,7 +5,6 @@ import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { MonthlyTrend } from "@/components/dashboard/monthly-trend";
 import { TransactionTable } from "@/components/dashboard/transaction-table";
-import { GmailSync } from "@/components/dashboard/gmail-sync";
 import { BankSync } from "@/components/dashboard/bank-sync";
 import { BillingSettings } from "@/components/dashboard/billing-settings";
 import { FixedExpenses } from "@/components/dashboard/fixed-expenses";
@@ -220,7 +219,6 @@ export default function Dashboard() {
             ⚙️
           </button>
           <BankSync onSync={fetchData} />
-          <GmailSync onSync={fetchData} />
         </div>
       </header>
 
@@ -432,7 +430,7 @@ function EmptyState() {
       <span className="text-4xl">💳</span>
       <p className="font-medium">Sin transacciones</p>
       <p className="text-sm text-[var(--muted-foreground)]">
-        Sincroniza tu banco o Gmail para importar gastos.
+        Sincroniza tu banco para importar gastos.
       </p>
     </div>
   );

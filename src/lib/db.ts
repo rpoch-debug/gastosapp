@@ -33,13 +33,6 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
 
-    CREATE TABLE IF NOT EXISTS gmail_tokens (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      access_token TEXT NOT NULL,
-      refresh_token TEXT NOT NULL,
-      expiry_date INTEGER NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -466,21 +459,3 @@ export function smartCategorize(merchant: string): string {
   return categorize(merchant);
 }
 
-// ---------- Gmail tokens ----------
-
-export function saveGmailTokens(tokens: { access_token: string; refresh_token: string; expiry_date: number }) {
-  const db = getDb();
-  db.prepare(`
-    INSERT OR REPLACE INTO gmail_tokens (id, access_token, refresh_token, expiry_date)
-    VALUES (1, ?, ?, ?)
-  `).run(tokens.access_token, tokens.refresh_token, tokens.expiry_date);
-}
-
-export function getGmailTokens() {
-  const db = getDb();
-  return db.prepare("SELECT * FROM gmail_tokens WHERE id = 1").get() as {
-    access_token: string;
-    refresh_token: string;
-    expiry_date: number;
-  } | undefined;
-}
