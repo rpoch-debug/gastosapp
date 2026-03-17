@@ -13,12 +13,14 @@ interface BankStatus {
 interface Props {
   onClose: () => void;
   onSave: () => void;
+  onSynced?: () => void;
 }
 
-export function BankCredentialsModal({ onClose, onSave }: Props) {
+export function BankCredentialsModal({ onClose, onSave, onSynced }: Props) {
   const [banks, setBanks] = useState<BankStatus[]>([]);
   const [forms, setForms] = useState<Record<string, { rut: string; password: string; showPw: boolean }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [messages, setMessages] = useState<Record<string, { text: string; ok: boolean }>>({});
   const [loading, setLoading] = useState(true);
 
@@ -56,13 +58,31 @@ export function BankCredentialsModal({ onClose, onSave }: Props) {
     if (data.ok) {
       setBanks((prev) => prev.map((b) => b.id === bankId ? { ...b, configured: true, source: "db" } : b));
       setForms((f) => ({ ...f, [bankId]: { ...f[bankId], password: "" } }));
-      setMessages((m) => ({ ...m, [bankId]: { text: "Guardado correctamente", ok: true } }));
+      setMessages((m) => ({ ...m, [bankId]: { text: "✓ Guardado — ahora sincroniza para importar tus transacciones", ok: true } }));
       onSave();
     } else {
       setMessages((m) => ({ ...m, [bankId]: { text: data.error || "Error al guardar", ok: false } }));
     }
     setSaving((s) => ({ ...s, [bankId]: false }));
     setTimeout(() => setMessages((m) => ({ ...m, [bankId]: { text: "", ok: true } })), 3000);
+  }
+
+  async function handleSync(bankId: string) {
+    setSyncing((s) => ({ ...s, [bankId]: true }));
+    setMessages((m) => ({ ...m, [bankId]: { text: "Conectando con el banco… puede tardar 30-90s", ok: true } }));
+    try {
+      const res = await fetch(`/api/bank/${bankId}/sync`, { method: "POST" });
+      const data = await res.json();
+      if (data.error) {
+        setMessages((m) => ({ ...m, [bankId]: { text: `Error: ${data.error}`, ok: false } }));
+      } else {
+        setMessages((m) => ({ ...m, [bankId]: { text: `✓ ${data.imported} transacciones importadas, ${data.skipped} omitidas`, ok: true } }));
+        onSynced?.();
+      }
+    } catch {
+      setMessages((m) => ({ ...m, [bankId]: { text: "Error de conexión", ok: false } }));
+    }
+    setSyncing((s) => ({ ...s, [bankId]: false }));
   }
 
   async function handleDelete(bankId: string) {
@@ -112,11 +132,13 @@ export function BankCredentialsModal({ onClose, onSave }: Props) {
                 bank={bank}
                 form={forms[bank.id] ?? { rut: "", password: "", showPw: false }}
                 saving={!!saving[bank.id]}
+                syncing={!!syncing[bank.id]}
                 message={messages[bank.id]}
                 onRut={(v) => setField(bank.id, "rut", v)}
                 onPassword={(v) => setField(bank.id, "password", v)}
                 onTogglePw={() => setField(bank.id, "showPw", !forms[bank.id]?.showPw)}
                 onSave={() => handleSave(bank.id)}
+                onSync={() => handleSync(bank.id)}
                 onDelete={() => handleDelete(bank.id)}
               />
             ))
@@ -135,17 +157,19 @@ export function BankCredentialsModal({ onClose, onSave }: Props) {
 }
 
 function BankRow({
-  bank, form, saving, message,
-  onRut, onPassword, onTogglePw, onSave, onDelete,
+  bank, form, saving, syncing, message,
+  onRut, onPassword, onTogglePw, onSave, onSync, onDelete,
 }: {
   bank: BankStatus;
   form: { rut: string; password: string; showPw: boolean };
   saving: boolean;
+  syncing: boolean;
   message?: { text: string; ok: boolean };
   onRut: (v: string) => void;
   onPassword: (v: string) => void;
   onTogglePw: () => void;
   onSave: () => void;
+  onSync: () => void;
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -207,30 +231,57 @@ function BankRow({
           </div>
 
           {bank.source === "env" ? (
-            <p className="text-xs text-[var(--muted-foreground)]">
-              Configurado via variable de entorno. Para editar, modifica <code>.env.local</code>.
-            </p>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onSave}
-                disabled={saving}
-                className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {saving ? "Guardando..." : "Guardar"}
-              </button>
-              {bank.configured && (
+            <div className="space-y-2">
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Configurado via variable de entorno. Para editar, modifica <code>.env.local</code>.
+              </p>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={onDelete}
-                  className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 transition-colors"
+                  onClick={onSync}
+                  disabled={syncing}
+                  className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  Desconectar
+                  {syncing ? "⏳ Conectando..." : "⬇️ Sincronizar ahora"}
                 </button>
-              )}
+                {message?.text && (
+                  <span className={`text-xs ${message.ok ? "text-emerald-400" : "text-red-400"}`}>
+                    {message.text}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={onSave}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {saving ? "Guardando..." : "Guardar"}
+                </button>
+                {bank.configured && (
+                  <>
+                    <button
+                      onClick={onSync}
+                      disabled={syncing}
+                      className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {syncing ? "⏳ Conectando..." : "⬇️ Sincronizar ahora"}
+                    </button>
+                    <button
+                      onClick={onDelete}
+                      className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 transition-colors"
+                    >
+                      Desconectar
+                    </button>
+                  </>
+                )}
+              </div>
               {message?.text && (
-                <span className={`text-xs ${message.ok ? "text-emerald-400" : "text-red-400"}`}>
+                <p className={`text-xs ${message.ok ? "text-emerald-400" : "text-red-400"}`}>
                   {message.text}
-                </span>
+                </p>
               )}
             </div>
           )}

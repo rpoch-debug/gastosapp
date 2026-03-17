@@ -12,9 +12,10 @@ interface BankStatus {
 
 interface Props {
   onSync: () => void;
+  refreshKey?: number;
 }
 
-export function BankSync({ onSync }: Props) {
+export function BankSync({ onSync, refreshKey }: Props) {
   const [banks, setBanks] = useState<BankStatus[]>([]);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, string>>({});
@@ -23,7 +24,7 @@ export function BankSync({ onSync }: Props) {
     fetch("/api/bank/status")
       .then((r) => r.json())
       .then((data) => setBanks(data.banks ?? []));
-  }, []);
+  }, [refreshKey]);
 
   async function handleSync(bankId: string) {
     setSyncing((s) => ({ ...s, [bankId]: true }));

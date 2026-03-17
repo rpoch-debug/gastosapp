@@ -135,6 +135,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showBankCredentials, setShowBankCredentials] = useState(false);
+  const [bankRefreshKey, setBankRefreshKey] = useState(0);
   const [showWebhook, setShowWebhook] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("gastos");
   const [fixedTotal, setFixedTotal] = useState(0);
@@ -218,7 +219,7 @@ export default function Dashboard() {
           >
             ⚙️
           </button>
-          <BankSync onSync={fetchData} />
+          <BankSync onSync={fetchData} refreshKey={bankRefreshKey} />
         </div>
       </header>
 
@@ -228,7 +229,8 @@ export default function Dashboard() {
       {showBankCredentials && (
         <BankCredentialsModal
           onClose={() => setShowBankCredentials(false)}
-          onSave={() => { fetchData(); setShowBankCredentials(false); }}
+          onSave={() => { setBankRefreshKey((k) => k + 1); }}
+          onSynced={() => { fetchData(); fetchTotals(); }}
         />
       )}
 
