@@ -42,6 +42,28 @@ npm run dev
 
 Abrir en el browser: [http://localhost:3000](http://localhost:3000)
 
+> **Nota:** Si el puerto 3000 está ocupado, Next.js usará el 3001 automáticamente. Revisa la terminal — dice exactamente en qué URL quedó corriendo.
+
+---
+
+## Problemas frecuentes
+
+**"Username for github.com"** al clonar → el repo es privado, pídele al dueño que te agregue como colaborador en GitHub (Settings → Collaborators).
+
+**La app no carga en el browser** → asegúrate de haber corrido `npm run dev` después del setup. El setup solo instala, no inicia la app. Revisa la terminal para ver en qué puerto quedó (`localhost:3000` o `localhost:3001`).
+
+**"Cannot find module tsc"** o error en setup → asegúrate de estar dentro de la carpeta `gastosapp` antes de correr cualquier comando:
+```bash
+cd gastosapp
+bash setup.sh
+```
+
+**Node.js versión antigua** → instala la versión actual:
+```bash
+brew install node
+```
+Luego cierra y abre la terminal antes de continuar.
+
 ---
 
 ## Configurar banco
