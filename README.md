@@ -33,16 +33,10 @@ Ver [SECURITY.md](./SECURITY.md) para el detalle técnico completo.
 git clone https://github.com/rpoch-debug/gastosapp.git
 cd gastosapp
 
-# 2. Instalar dependencias
-PATH="/opt/homebrew/bin:$PATH" npm install --ignore-scripts
-PATH="/opt/homebrew/bin:$PATH" npm rebuild better-sqlite3
+# 2. Correr el setup (instala dependencias y compila todo)
+bash setup.sh
 
-# 3. Compilar el scraper bancario
-PATH="/opt/homebrew/bin:$PATH" node node_modules/.bin/tsc \
-  --project node_modules/open-banking-chile/tsconfig.json \
-  --noEmitOnError false
-
-# 4. Correr la app
+# 3. Correr la app
 npm run dev
 ```
 
