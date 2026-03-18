@@ -6,7 +6,7 @@ import {
   setSetting,
   addBillingCycleDate,
 } from "@/lib/db";
-import { BANK_CONFIGS } from "@/lib/bank-configs";
+import { BANK_CONFIGS, type TrackingMode } from "@/lib/bank-configs";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -54,12 +54,21 @@ function cleanMerchant(raw: string): string {
 }
 
 /**
- * Detecta si un movimiento es de tarjeta de crédito.
- * Para bancos con allMovementsAreTC=true, siempre retorna true.
+ * Determina si un movimiento debe importarse según el trackingMode del usuario.
+ * - "tc": solo tarjeta de crédito (prefijo [TC ...])
+ * - "debit": solo cuenta corriente (sin prefijo [TC ...])
+ * - "both": todos los movimientos con monto negativo
  */
-function isTCMovement(description: string, allMovementsAreTC: boolean): boolean {
-  if (allMovementsAreTC) return true;
-  return description.startsWith("[TC ");
+function shouldImport(
+  description: string,
+  allMovementsAreTC: boolean,
+  mode: TrackingMode
+): boolean {
+  if (allMovementsAreTC) return true; // banco solo entrega TC, siempre importar
+  const isTC = description.startsWith("[TC ");
+  if (mode === "tc") return isTC;
+  if (mode === "debit") return !isTC;
+  return true; // "both"
 }
 
 /**
@@ -183,25 +192,27 @@ export async function POST(
       }
     }
 
+    const trackingMode = (getSetting(`tracking_mode_${bankId}`) ?? "tc") as TrackingMode;
     let imported = 0;
     let skipped = 0;
 
     for (const movement of result.movements ?? []) {
-      if (!isTCMovement(movement.description ?? "", cfg.allMovementsAreTC ?? false)) {
-        skipped++;
-        continue;
-      }
-
       // Solo cargos (amount negativo = gasto)
       if (movement.amount >= 0) {
         skipped++;
         continue;
       }
 
-      const card_last4 = extractCardLast4(movement.description, creditCardLabels);
+      if (!shouldImport(movement.description ?? "", cfg.allMovementsAreTC ?? false, trackingMode)) {
+        skipped++;
+        continue;
+      }
+
+      const isTC = (movement.description ?? "").startsWith("[TC ") || (cfg.allMovementsAreTC ?? false);
+      const card_last4 = isTC ? extractCardLast4(movement.description, creditCardLabels) : null;
       const merchant = extractMerchant(movement.description);
       const date = normalizeDate(movement.date);
-      const international = isInternational(movement.description, cfg.intInTag ?? false);
+      const international = isTC && isInternational(movement.description, cfg.intInTag ?? false);
       const category = smartCategorize(merchant);
 
       let tx;

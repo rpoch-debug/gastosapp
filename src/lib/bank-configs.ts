@@ -1,3 +1,5 @@
+export type TrackingMode = "tc" | "debit" | "both";
+
 export interface BankConfig {
   id: string;
   name: string;
@@ -10,11 +12,15 @@ export interface BankConfig {
    */
   allMovementsAreTC?: boolean;
   /**
-   * Si true: los movimientos internacionales (USD) se detectan por el sufijo INT] en el tag
-   * en vez de buscar [INT] separado o COMPRAS INT en el merchant.
-   * Ej: BCI usa [TC No Facturado INT] en vez de [INT].
+   * Si true: los movimientos internacionales (USD) se detectan por el sufijo INT] en el tag.
+   * Ej: BCI usa [TC No Facturado INT] en vez de [INT] separado.
    */
   intInTag?: boolean;
+  /**
+   * Si true: el banco también entrega movimientos de cuenta corriente (débito),
+   * por lo que el usuario puede elegir qué trackear: TC, débito o ambos.
+   */
+  supportsDebit: boolean;
 }
 
 export const BANK_CONFIGS: Record<string, BankConfig> = {
@@ -24,9 +30,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "BChile",
     rutEnv: "BANCO_CHILE_RUT",
     passwordEnv: "BANCO_CHILE_PASSWORD",
-    // Movimientos TC llevan [TC CardName ****XXXX], cuenta lleva [AccountName ****XXXX]
     allMovementsAreTC: false,
     intInTag: false,
+    supportsDebit: true,
   },
   bci: {
     id: "bci",
@@ -34,10 +40,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "BCI",
     rutEnv: "BCI_RUT",
     passwordEnv: "BCI_PASSWORD",
-    // TC: [TC No Facturado], [TC Facturado], [TC No Facturado INT], [TC Facturado INT]
-    // Cuenta: [CC] o [AccountLabel]
     allMovementsAreTC: false,
-    intInTag: true, // INT viene dentro del tag: [TC No Facturado INT]
+    intInTag: true,
+    supportsDebit: true,
   },
   bice: {
     id: "bice",
@@ -45,9 +50,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "BICE",
     rutEnv: "BICE_RUT",
     passwordEnv: "BICE_PASSWORD",
-    // BICE devuelve solo movimientos TC (no mezcla cuenta corriente)
     allMovementsAreTC: true,
     intInTag: false,
+    supportsDebit: false, // scraper solo retorna TC
   },
   edwards: {
     id: "edwards",
@@ -55,9 +60,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "Edwards",
     rutEnv: "EDWARDS_RUT",
     passwordEnv: "EDWARDS_PASSWORD",
-    // Mismo portal que BChile, mismo formato
     allMovementsAreTC: false,
     intInTag: false,
+    supportsDebit: true,
   },
   falabella: {
     id: "falabella",
@@ -65,9 +70,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "Falabella",
     rutEnv: "FALABELLA_RUT",
     passwordEnv: "FALABELLA_PASSWORD",
-    // TC: [TC Por Facturar], [TC Facturados]; Cuenta: sin tag o tag distinto
     allMovementsAreTC: false,
     intInTag: false,
+    supportsDebit: true,
   },
   itau: {
     id: "itau",
@@ -75,10 +80,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "Itaú",
     rutEnv: "ITAU_RUT",
     passwordEnv: "ITAU_PASSWORD",
-    // TC: [TC Por Facturar], [TC Facturados]; Cuenta: [Cuenta Corriente]
-    // Requiere aprobación en app Itaú Key (2FA)
     allMovementsAreTC: false,
     intInTag: false,
+    supportsDebit: true,
   },
   santander: {
     id: "santander",
@@ -86,9 +90,9 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "Santander",
     rutEnv: "SANTANDER_RUT",
     passwordEnv: "SANTANDER_PASSWORD",
-    // TC: [TC Por Facturar], [TC Facturados]
     allMovementsAreTC: false,
     intInTag: false,
+    supportsDebit: true,
   },
   scotiabank: {
     id: "scotiabank",
@@ -96,8 +100,8 @@ export const BANK_CONFIGS: Record<string, BankConfig> = {
     shortName: "Scotia",
     rutEnv: "SCOTIABANK_RUT",
     passwordEnv: "SCOTIABANK_PASSWORD",
-    // Scotiabank devuelve movimientos sin prefijo [TC], todos son de TC
     allMovementsAreTC: true,
     intInTag: false,
+    supportsDebit: false, // scraper solo retorna TC
   },
 };

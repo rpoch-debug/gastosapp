@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 
+type TrackingMode = "tc" | "debit" | "both";
+
 interface BankStatus {
   id: string;
   name: string;
   configured: boolean;
+  supportsDebit: boolean;
   rut: string;
   source: "db" | "env" | "none";
+  trackingMode: TrackingMode;
 }
 
 interface Props {
@@ -18,7 +22,7 @@ interface Props {
 
 export function BankCredentialsModal({ onClose, onSave, onSynced }: Props) {
   const [banks, setBanks] = useState<BankStatus[]>([]);
-  const [forms, setForms] = useState<Record<string, { rut: string; password: string; showPw: boolean }>>({});
+  const [forms, setForms] = useState<Record<string, { rut: string; password: string; showPw: boolean; trackingMode: TrackingMode }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [messages, setMessages] = useState<Record<string, { text: string; ok: boolean }>>({});
@@ -31,15 +35,24 @@ export function BankCredentialsModal({ onClose, onSave, onSynced }: Props) {
         setBanks(data.banks ?? []);
         const initial: typeof forms = {};
         for (const b of data.banks ?? []) {
-          initial[b.id] = { rut: b.rut ?? "", password: "", showPw: false };
+          initial[b.id] = { rut: b.rut ?? "", password: "", showPw: false, trackingMode: b.trackingMode ?? "tc" };
         }
         setForms(initial);
         setLoading(false);
       });
   }, []);
 
-  function setField(bankId: string, field: "rut" | "password" | "showPw", value: string | boolean) {
+  function setField(bankId: string, field: "rut" | "password" | "showPw" | "trackingMode", value: string | boolean) {
     setForms((f) => ({ ...f, [bankId]: { ...f[bankId], [field]: value } }));
+  }
+
+  async function handleTrackingMode(bankId: string, mode: TrackingMode) {
+    setField(bankId, "trackingMode", mode);
+    await fetch("/api/credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bankId, trackingMode: mode }),
+    });
   }
 
   async function handleSave(bankId: string) {
@@ -52,7 +65,7 @@ export function BankCredentialsModal({ onClose, onSave, onSynced }: Props) {
     const res = await fetch("/api/credentials", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bankId, rut: form.rut, password: form.password }),
+      body: JSON.stringify({ bankId, rut: form.rut, password: form.password, trackingMode: form.trackingMode }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -130,13 +143,14 @@ export function BankCredentialsModal({ onClose, onSave, onSynced }: Props) {
               <BankRow
                 key={bank.id}
                 bank={bank}
-                form={forms[bank.id] ?? { rut: "", password: "", showPw: false }}
+                form={forms[bank.id] ?? { rut: "", password: "", showPw: false, trackingMode: "tc" }}
                 saving={!!saving[bank.id]}
                 syncing={!!syncing[bank.id]}
                 message={messages[bank.id]}
                 onRut={(v) => setField(bank.id, "rut", v)}
                 onPassword={(v) => setField(bank.id, "password", v)}
                 onTogglePw={() => setField(bank.id, "showPw", !forms[bank.id]?.showPw)}
+                onTrackingMode={(mode) => handleTrackingMode(bank.id, mode)}
                 onSave={() => handleSave(bank.id)}
                 onSync={() => handleSync(bank.id)}
                 onDelete={() => handleDelete(bank.id)}
@@ -156,18 +170,25 @@ export function BankCredentialsModal({ onClose, onSave, onSynced }: Props) {
   );
 }
 
+const TRACKING_OPTIONS: { value: TrackingMode; label: string; icon: string; desc: string }[] = [
+  { value: "tc", label: "Crédito", icon: "💳", desc: "Solo tarjeta de crédito" },
+  { value: "debit", label: "Débito", icon: "🏦", desc: "Solo cuenta corriente" },
+  { value: "both", label: "Ambos", icon: "✦", desc: "TC + cuenta corriente" },
+];
+
 function BankRow({
   bank, form, saving, syncing, message,
-  onRut, onPassword, onTogglePw, onSave, onSync, onDelete,
+  onRut, onPassword, onTogglePw, onTrackingMode, onSave, onSync, onDelete,
 }: {
   bank: BankStatus;
-  form: { rut: string; password: string; showPw: boolean };
+  form: { rut: string; password: string; showPw: boolean; trackingMode: TrackingMode };
   saving: boolean;
   syncing: boolean;
   message?: { text: string; ok: boolean };
   onRut: (v: string) => void;
   onPassword: (v: string) => void;
   onTogglePw: () => void;
+  onTrackingMode: (mode: TrackingMode) => void;
   onSave: () => void;
   onSync: () => void;
   onDelete: () => void;
@@ -196,7 +217,33 @@ function BankRow({
       {/* Expanded form */}
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t border-[var(--border)]">
-          <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+          {/* Tracking mode selector */}
+          {bank.supportsDebit && (
+            <div className="pt-3">
+              <label className="block text-xs text-[var(--muted-foreground)] mb-2">¿Qué movimientos importar?</label>
+              <div className="grid grid-cols-3 gap-2">
+                {TRACKING_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onTrackingMode(opt.value)}
+                    className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                      form.trackingMode === opt.value
+                        ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
+                        : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--accent)]/50"
+                    }`}
+                  >
+                    <span className="text-base">{opt.icon}</span>
+                    <span>{opt.label}</span>
+                    <span className="text-[10px] opacity-70 text-center leading-tight">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[var(--muted-foreground)] mb-1">RUT</label>
               <input

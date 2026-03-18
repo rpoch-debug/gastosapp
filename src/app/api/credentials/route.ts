@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSetting, setSetting, getDb } from "@/lib/db";
 import { BANK_CONFIGS } from "@/lib/bank-configs";
 
-/** GET — lista bancos con estado configurado (sin exponer credenciales) */
+/** GET — lista bancos con estado configurado y trackingMode */
 export async function GET() {
   const banks = Object.values(BANK_CONFIGS).map((cfg) => {
     const rutInDb = getSetting(`cred_${cfg.id}_rut`);
@@ -15,28 +15,36 @@ export async function GET() {
       id: cfg.id,
       name: cfg.name,
       configured,
-      // Devuelve RUT enmascarado si está guardado (para mostrarlo en el form)
+      supportsDebit: cfg.supportsDebit,
       rut: rutInDb ? rutInDb : rutInEnv ? rutInEnv : "",
       source: rutInDb ? "db" : rutInEnv ? "env" : "none",
+      trackingMode: getSetting(`tracking_mode_${cfg.id}`) ?? "tc",
     };
   });
 
   return NextResponse.json({ banks });
 }
 
-/** POST — guarda credenciales de un banco en la DB local */
+/** POST — guarda credenciales y trackingMode de un banco */
 export async function POST(req: Request) {
-  const { bankId, rut, password } = await req.json();
+  const { bankId, rut, password, trackingMode } = await req.json();
 
   if (!BANK_CONFIGS[bankId]) {
     return NextResponse.json({ error: "Banco no soportado" }, { status: 400 });
   }
-  if (!rut || !password) {
-    return NextResponse.json({ error: "RUT y contraseña requeridos" }, { status: 400 });
+
+  // Guardar trackingMode si viene (puede actualizarse sin cambiar credenciales)
+  if (trackingMode) {
+    setSetting(`tracking_mode_${bankId}`, trackingMode);
   }
 
-  setSetting(`cred_${bankId}_rut`, rut.trim());
-  setSetting(`cred_${bankId}_password`, password);
+  // Guardar credenciales solo si vienen
+  if (rut && password) {
+    setSetting(`cred_${bankId}_rut`, rut.trim());
+    setSetting(`cred_${bankId}_password`, password);
+  } else if (rut || password) {
+    return NextResponse.json({ error: "RUT y contraseña requeridos" }, { status: 400 });
+  }
 
   return NextResponse.json({ ok: true });
 }
