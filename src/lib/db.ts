@@ -89,6 +89,16 @@ function migrate(db: Database.Database) {
   try {
     db.exec(`ALTER TABLE transactions ADD COLUMN original_amount INTEGER`);
   } catch { /* column already exists */ }
+  // Add movement_type: "tc" = tarjeta de crédito, "debit" = cuenta corriente
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN movement_type TEXT NOT NULL DEFAULT 'tc'`);
+  } catch { /* column already exists */ }
+}
+
+/** Elimina transacciones de una fuente (banco) filtrando por tipo de movimiento */
+export function deleteTransactionsBySourceAndType(source: string, movementType: "tc" | "debit") {
+  const db = getDb();
+  db.prepare("DELETE FROM transactions WHERE source = ? AND movement_type = ?").run(source, movementType);
 }
 
 export interface Transaction {
@@ -103,6 +113,7 @@ export interface Transaction {
   email_id: string | null;
   currency: string;
   original_amount: number | null;
+  movement_type: "tc" | "debit";
   created_at: string;
 }
 
@@ -120,14 +131,15 @@ export function insertTransaction(tx: Omit<Transaction, "id" | "created_at">): T
   if (duplicate) return null;
 
   const stmt = db.prepare(`
-    INSERT INTO transactions (amount, merchant, category, date, card_last4, source, raw_text, email_id, currency, original_amount)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO transactions (amount, merchant, category, date, card_last4, source, raw_text, email_id, currency, original_amount, movement_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
     tx.amount, tx.merchant, tx.category, tx.date,
     tx.card_last4, tx.source, tx.raw_text, tx.email_id,
-    tx.currency || "CLP", tx.original_amount ?? null
+    tx.currency || "CLP", tx.original_amount ?? null,
+    tx.movement_type ?? "tc"
   );
 
   return db.prepare("SELECT * FROM transactions WHERE id = ?").get(result.lastInsertRowid) as Transaction;

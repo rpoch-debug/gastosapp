@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSetting, setSetting, getDb } from "@/lib/db";
+import { getSetting, setSetting, getDb, deleteTransactionsBySourceAndType } from "@/lib/db";
 import { BANK_CONFIGS } from "@/lib/bank-configs";
 
 /** GET — lista bancos con estado configurado y trackingMode */
@@ -33,8 +33,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Banco no soportado" }, { status: 400 });
   }
 
-  // Guardar trackingMode si viene (puede actualizarse sin cambiar credenciales)
+  // Guardar trackingMode si viene — y limpiar transacciones del tipo que ya no aplica
   if (trackingMode) {
+    const prevMode = getSetting(`tracking_mode_${bankId}`) ?? "tc";
+    if (prevMode !== trackingMode) {
+      if (trackingMode === "tc") {
+        // Cambiando a solo TC → borrar débito de este banco
+        deleteTransactionsBySourceAndType(bankId, "debit");
+      } else if (trackingMode === "debit") {
+        // Cambiando a solo débito → borrar TC de este banco
+        deleteTransactionsBySourceAndType(bankId, "tc");
+      }
+      // Si cambia a "both" no se borra nada
+    }
     setSetting(`tracking_mode_${bankId}`, trackingMode);
   }
 

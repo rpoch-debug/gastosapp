@@ -209,6 +209,7 @@ export async function POST(
       }
 
       const isTC = (movement.description ?? "").startsWith("[TC ") || (cfg.allMovementsAreTC ?? false);
+      const movementType: "tc" | "debit" = isTC ? "tc" : "debit";
       const card_last4 = isTC ? extractCardLast4(movement.description, creditCardLabels) : null;
       const merchant = extractMerchant(movement.description);
       const date = normalizeDate(movement.date);
@@ -229,6 +230,7 @@ export async function POST(
           email_id: null,
           currency: "USD",
           original_amount: usdCents,
+          movement_type: movementType,
         });
       } else {
         tx = insertTransaction({
@@ -242,6 +244,7 @@ export async function POST(
           email_id: null,
           currency: "CLP",
           original_amount: null,
+          movement_type: movementType,
         });
       }
 
