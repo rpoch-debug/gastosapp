@@ -12,12 +12,46 @@ interface Transaction {
   date: string;
   card_last4: string | null;
   source: string;
+  movement_type?: "tc" | "debit";
 }
 
 interface Props {
   transactions: Transaction[];
   categories: string[];
   onUpdate: () => void;
+}
+
+function SourceBadge({ tx }: { tx: Transaction }) {
+  // Tarjeta de crédito con número conocido
+  if (tx.card_last4) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
+        ****{tx.card_last4}
+      </span>
+    );
+  }
+  // Débito / cuenta corriente
+  if (tx.movement_type === "debit") {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
+        Débito
+      </span>
+    );
+  }
+  // Webhook
+  if (tx.source === "webhook") {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">
+        Wallet
+      </span>
+    );
+  }
+  // Email u otro
+  return (
+    <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
+      Email
+    </span>
+  );
 }
 
 export function TransactionTable({ transactions, categories, onUpdate }: Props) {
@@ -102,13 +136,7 @@ export function TransactionTable({ transactions, categories, onUpdate }: Props) 
                     {formatCLP(tx.amount)}
                   </td>
                   <td className="p-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      tx.source === "webhook"
-                        ? "bg-purple-500/20 text-purple-400"
-                        : "bg-blue-500/20 text-blue-400"
-                    }`}>
-                      {tx.source === "webhook" ? "Wallet" : "Email"}
-                    </span>
+                    <SourceBadge tx={tx} />
                   </td>
                 </tr>
               ))}
