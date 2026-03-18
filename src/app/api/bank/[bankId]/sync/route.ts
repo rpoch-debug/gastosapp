@@ -53,16 +53,23 @@ function cleanMerchant(raw: string): string {
     .trim();
 }
 
-/** Detecta si un movimiento es de tarjeta de crédito */
-function isTCMovement(description: string): boolean {
+/**
+ * Detecta si un movimiento es de tarjeta de crédito.
+ * Para bancos con allMovementsAreTC=true, siempre retorna true.
+ */
+function isTCMovement(description: string, allMovementsAreTC: boolean): boolean {
+  if (allMovementsAreTC) return true;
   return description.startsWith("[TC ");
 }
 
-/** Detecta si es una transacción internacional (USD) */
-function isInternational(description: string): boolean {
-  // bchile: [INT] como tag separado, o COMPRAS INT en merchant
-  // bci/otros: tag termina en INT] → "[TC No Facturado INT]"
-  return /\[INT\]|\sINT\]|COMPRAS\s+INT/i.test(description);
+/**
+ * Detecta si es una transacción internacional (USD).
+ * - intInTag=true: el INT viene dentro del tag: "[TC No Facturado INT]"
+ * - intInTag=false: busca [INT] separado o COMPRAS INT en el merchant (bchile)
+ */
+function isInternational(description: string, intInTag: boolean): boolean {
+  if (intInTag) return /\sINT\]/i.test(description);
+  return /\[INT\]|COMPRAS\s+INT/i.test(description);
 }
 
 /**
@@ -180,7 +187,7 @@ export async function POST(
     let skipped = 0;
 
     for (const movement of result.movements ?? []) {
-      if (!isTCMovement(movement.description ?? "")) {
+      if (!isTCMovement(movement.description ?? "", cfg.allMovementsAreTC ?? false)) {
         skipped++;
         continue;
       }
@@ -194,7 +201,7 @@ export async function POST(
       const card_last4 = extractCardLast4(movement.description, creditCardLabels);
       const merchant = extractMerchant(movement.description);
       const date = normalizeDate(movement.date);
-      const international = isInternational(movement.description);
+      const international = isInternational(movement.description, cfg.intInTag ?? false);
       const category = smartCategorize(merchant);
 
       let tx;
